@@ -1,0 +1,167 @@
+// THIS IS STUB CODE — Not yet implemented.
+// Provides circuit definitions and placeholder logic only.
+// Module: zk-circuits/STUB_settlement_verification.compact
+// Purpose: Settlement Verification Circuit (SRS §7) — Validates balance updates,
+//          position changes, and margin accounting that occur when a matched
+//          trade is settled on-chain.
+
+// =============================================================================
+// TYPE DECLARATIONS
+// =============================================================================
+
+/**
+ * Balance state before and after settlement.
+ */
+type BalanceTransition = {
+  traderPubKeyHash: Bytes<32>,
+  balanceBefore: Uint<64>,
+  balanceAfter: Uint<64>,
+  lockedMarginBefore: Uint<64>,
+  lockedMarginAfter: Uint<64>,
+};
+
+/**
+ * Position state after settlement.
+ */
+type PositionUpdate = {
+  positionId: Bytes<16>,
+  pairId: Bytes<8>,
+  side: Uint<8>,              // 0 = LONG, 1 = SHORT
+  entryPrice: Uint<64>,
+  size: Uint<64>,
+  marginLocked: Uint<64>,
+  leverage: Uint<8>,
+};
+
+/**
+ * Public inputs for settlement verification.
+ */
+type SettlementPublicInputs = {
+  matchId: Bytes<16>,                    // Reference to the verified match
+  buyerBalanceCommitment: Bytes<32>,     // Commitment to buyer's new balance
+  sellerBalanceCommitment: Bytes<32>,    // Commitment to seller's new balance
+  settlementTimestamp: Uint<64>,
+  txHash: Bytes<32>,                     // Cardano transaction hash
+};
+
+// =============================================================================
+// LEDGER DECLARATIONS
+// =============================================================================
+
+export ledger verifiedSettlements: Counter;
+export ledger positionRegistry: Map<Bytes<16>, PositionUpdate>;
+export ledger settlementLog: Map<Bytes<16>, Uint<64>>;  // matchId → timestamp
+
+// =============================================================================
+// WITNESS FUNCTIONS
+// =============================================================================
+
+/**
+ * Retrieves the buyer's balance transition (private).
+ */
+witness getBuyerBalanceTransition(): BalanceTransition;
+
+/**
+ * Retrieves the seller's balance transition (private).
+ */
+witness getSellerBalanceTransition(): BalanceTransition;
+
+/**
+ * Retrieves the new position created for the buyer.
+ */
+witness getBuyerPosition(): PositionUpdate;
+
+/**
+ * Retrieves the new position created for the seller.
+ */
+witness getSellerPosition(): PositionUpdate;
+
+/**
+ * Retrieves the execution price and size from the match.
+ */
+witness getExecutionDetails(): { executionPrice: Uint<64>, executionSize: Uint<64> };
+
+/**
+ * Retrieves the blinding factors for balance commitments.
+ */
+witness getBlindingFactors(): { buyerBlinding: Bytes<32>, sellerBlinding: Bytes<32> };
+
+// =============================================================================
+// CIRCUITS
+// =============================================================================
+
+/**
+ * Circuit: verifySettlement
+ *
+ * Validates that a trade settlement was executed correctly by proving:
+ *   1. Balance transitions are consistent (no funds created or destroyed)
+ *   2. Margin is correctly locked for new positions
+ *   3. Position parameters match the execution details
+ *   4. Balance commitments are correctly formed
+ *   5. Net balance change across all parties is zero (conservation of value)
+ *
+ * SRS §7: "Validates balance updates, position changes, margin accounting"
+ *
+ * @param inputs - Public settlement parameters
+ */
+export circuit verifySettlement(inputs: SettlementPublicInputs): Void {
+  // --- Step 1: Retrieve private data ---
+  const buyerBalance = getBuyerBalanceTransition();
+  const sellerBalance = getSellerBalanceTransition();
+  const buyerPos = getBuyerPosition();
+  const sellerPos = getSellerPosition();
+  const execution = getExecutionDetails();
+  const blindings = getBlindingFactors();
+
+  // --- Step 2: Verify balance conservation ---
+  // Total value in the system must not change
+  // Buyer's margin is locked (balance decreases, locked increases)
+  // Seller's margin is locked (balance decreases, locked increases)
+  const buyerMarginChange = buyerBalance.lockedMarginAfter - buyerBalance.lockedMarginBefore;
+  const sellerMarginChange = sellerBalance.lockedMarginAfter - sellerBalance.lockedMarginBefore;
+
+  // Both parties lock margin equal to (size * price) / leverage
+  const buyerRequiredMargin = (execution.executionSize * execution.executionPrice) / buyerPos.leverage;
+  const sellerRequiredMargin = (execution.executionSize * execution.executionPrice) / sellerPos.leverage;
+
+  assert(buyerMarginChange == buyerRequiredMargin,
+    "Buyer margin lock amount incorrect");
+  assert(sellerMarginChange == sellerRequiredMargin,
+    "Seller margin lock amount incorrect");
+
+  // --- Step 3: Verify balance decreases match margin locks ---
+  const buyerBalanceDecrease = buyerBalance.balanceBefore - buyerBalance.balanceAfter;
+  const sellerBalanceDecrease = sellerBalance.balanceBefore - sellerBalance.balanceAfter;
+
+  assert(buyerBalanceDecrease == buyerRequiredMargin,
+    "Buyer balance decrease does not match margin lock");
+  assert(sellerBalanceDecrease == sellerRequiredMargin,
+    "Seller balance decrease does not match margin lock");
+
+  // --- Step 4: Verify position parameters ---
+  assert(buyerPos.entryPrice == execution.executionPrice,
+    "Buyer position entry price incorrect");
+  assert(sellerPos.entryPrice == execution.executionPrice,
+    "Seller position entry price incorrect");
+  assert(buyerPos.size == execution.executionSize,
+    "Buyer position size incorrect");
+  assert(sellerPos.size == execution.executionSize,
+    "Seller position size incorrect");
+  assert(buyerPos.side == 0, "Buyer position must be LONG");
+  assert(sellerPos.side == 1, "Seller position must be SHORT");
+
+  // --- Step 5: Verify balance commitments ---
+  const computedBuyerCommitment = hash(buyerBalance.balanceAfter, blindings.buyerBlinding);
+  const computedSellerCommitment = hash(sellerBalance.balanceAfter, blindings.sellerBlinding);
+
+  assert(computedBuyerCommitment == inputs.buyerBalanceCommitment,
+    "Buyer balance commitment mismatch");
+  assert(computedSellerCommitment == inputs.sellerBalanceCommitment,
+    "Seller balance commitment mismatch");
+
+  // --- Step 6: Record on ledger ---
+  positionRegistry[buyerPos.positionId] = buyerPos;
+  positionRegistry[sellerPos.positionId] = sellerPos;
+  settlementLog[inputs.matchId] = inputs.settlementTimestamp;
+  verifiedSettlements = verifiedSettlements + 1;
+}
