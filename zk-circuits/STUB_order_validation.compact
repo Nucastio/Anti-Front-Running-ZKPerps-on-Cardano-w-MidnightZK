@@ -1,0 +1,164 @@
+// THIS IS STUB CODE — Not yet implemented.
+// Provides circuit definitions and placeholder logic only.
+// Module: zk-circuits/STUB_order_validation.compact
+// Purpose: Order Validation Circuit (SRS §7) — Validates signature correctness,
+//          margin sufficiency, and order integrity using ZK proofs.
+//          Written in Midnight's Compact language.
+
+// =============================================================================
+// TYPE DECLARATIONS
+// =============================================================================
+
+/**
+ * Represents the public fields of a trading order that are committed on-chain.
+ */
+type OrderCommitment = {
+  commitmentHash: Bytes<32>,
+  pairId: Bytes<8>,
+  timestamp: Uint<64>,
+  traderPubKeyHash: Bytes<32>,
+};
+
+/**
+ * Represents the private order parameters known only to the trader.
+ * These are used as circuit witnesses and never appear on-chain.
+ */
+type OrderParams = {
+  price: Uint<64>,
+  size: Uint<64>,
+  side: Uint<8>,           // 0 = LONG, 1 = SHORT
+  leverage: Uint<8>,       // 1x to 20x
+  marginAmount: Uint<64>,  // margin locked for this order
+  nonce: Bytes<32>,        // random blinding factor
+};
+
+/**
+ * Represents the margin account state for proof of sufficient collateral.
+ */
+type MarginState = {
+  totalBalance: Uint<64>,
+  lockedMargin: Uint<64>,
+  availableBalance: Uint<64>,
+};
+
+// =============================================================================
+// LEDGER DECLARATIONS — Public on-chain state
+// =============================================================================
+
+/**
+ * On-chain ledger stores order commitments and validation results.
+ * All data in the ledger is publicly visible on the Midnight network.
+ */
+export ledger orderCommitments: Map<Bytes<32>, OrderCommitment>;
+export ledger validatedOrders: Counter;
+export ledger rejectedOrders: Counter;
+
+// =============================================================================
+// WITNESS FUNCTIONS — Private data access (implemented in TypeScript)
+// =============================================================================
+
+/**
+ * Retrieves the trader's private order parameters.
+ * This witness is called locally and never exposes data to the network.
+ */
+witness getOrderParams(): OrderParams;
+
+/**
+ * Retrieves the trader's current margin account state.
+ * Called locally to prove margin sufficiency without revealing balances.
+ */
+witness getMarginState(): MarginState;
+
+/**
+ * Retrieves the trader's digital signature for the order.
+ * Used to prove order authenticity.
+ */
+witness getTraderSignature(): Bytes<64>;
+
+/**
+ * Retrieves the trader's secret key for deriving the public key hash.
+ */
+witness getTraderSecret(): Bytes<32>;
+
+// =============================================================================
+// CIRCUITS — Zero-knowledge proof generation
+// =============================================================================
+
+/**
+ * Circuit: validateOrder
+ *
+ * Validates a trading order by generating a ZK proof that demonstrates:
+ *   1. The commitment hash is correctly computed from the order parameters
+ *   2. The trader's signature is valid (order authenticity)
+ *   3. The trader has sufficient margin to back the order
+ *   4. All order parameters are within valid ranges
+ *
+ * SRS §3.3: "the trader owns sufficient collateral, the order format is
+ * valid, margin requirements are satisfied"
+ *
+ * The verification occurs WITHOUT revealing the private values.
+ *
+ * @param commitment - The public order commitment to validate against
+ * @returns Updated ledger with the validated commitment registered
+ */
+export circuit validateOrder(commitment: OrderCommitment): Void {
+  // --- Step 1: Retrieve private witness data ---
+  const params = getOrderParams();
+  const marginState = getMarginState();
+  const signature = getTraderSignature();
+  const traderSecret = getTraderSecret();
+
+  // --- Step 2: Verify commitment hash integrity ---
+  // The commitment must equal H(price || size || side || leverage || margin || nonce)
+  // This proves the trader knows the preimage of the commitment
+  const computedHash = hash(
+    params.price,
+    params.size,
+    params.side,
+    params.leverage,
+    params.marginAmount,
+    params.nonce
+  );
+  assert(computedHash == commitment.commitmentHash,
+    "Commitment hash does not match order parameters");
+
+  // --- Step 3: Verify trader identity ---
+  // Derive public key hash from secret and verify it matches
+  const derivedPubKeyHash = hash(traderSecret);
+  assert(derivedPubKeyHash == commitment.traderPubKeyHash,
+    "Trader identity verification failed");
+
+  // --- Step 4: Verify signature authenticity ---
+  // The trader must have signed the commitment with their private key
+  assert(verifySignature(signature, commitment.commitmentHash, traderSecret),
+    "Invalid order signature");
+
+  // --- Step 5: Validate order parameters ---
+  // Size must be positive
+  assert(params.size > 0, "Order size must be positive");
+
+  // Leverage must be between 1x and 20x
+  assert(params.leverage >= 1, "Leverage must be at least 1x");
+  assert(params.leverage <= 20, "Leverage exceeds maximum of 20x");
+
+  // Side must be 0 (LONG) or 1 (SHORT)
+  assert(params.side <= 1, "Invalid order side");
+
+  // Price must be positive
+  assert(params.price > 0, "Price must be positive");
+
+  // --- Step 6: Verify margin sufficiency ---
+  // Available balance must cover the required margin
+  // Required margin = (size * price) / leverage
+  const requiredMargin = (params.size * params.price) / params.leverage;
+  assert(marginState.availableBalance >= requiredMargin,
+    "Insufficient margin for order");
+
+  // Verify margin state consistency
+  assert(marginState.availableBalance == marginState.totalBalance - marginState.lockedMargin,
+    "Margin state inconsistency detected");
+
+  // --- Step 7: Register the validated commitment on the ledger ---
+  orderCommitments[commitment.commitmentHash] = commitment;
+  validatedOrders = validatedOrders + 1;
+}

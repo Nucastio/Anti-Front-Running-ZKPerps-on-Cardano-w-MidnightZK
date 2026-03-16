@@ -1,0 +1,106 @@
+// THIS IS STUB CODE — Not yet implemented.
+// Provides circuit definitions and placeholder logic only.
+// Module: zk-circuits/STUB_price_range_proof.compact
+// Purpose: Price Range Proof Circuit — Proves an order's price falls within
+//          a valid range (oracle ± deviation) without revealing the exact price.
+//          This prevents price manipulation while maintaining order privacy.
+
+// =============================================================================
+// TYPE DECLARATIONS
+// =============================================================================
+
+/**
+ * Oracle price data used to define the valid price range.
+ */
+type OraclePrice = {
+  indexPrice: Uint<64>,          // Oracle-reported index price
+  maxDeviationBps: Uint<16>,     // Maximum deviation in basis points (e.g., 1000 = 10%)
+  oracleTimestamp: Uint<64>,     // Timestamp of the oracle price
+  oracleSignature: Bytes<64>,    // Oracle's signature over the price data
+};
+
+/**
+ * Public inputs for the price range proof.
+ */
+type PriceRangePublicInputs = {
+  priceCommitment: Bytes<32>,    // Commitment to the actual order price
+  pairId: Bytes<8>,              // Trading pair identifier
+  minPrice: Uint<64>,            // Lower bound of valid range
+  maxPrice: Uint<64>,            // Upper bound of valid range
+};
+
+// =============================================================================
+// LEDGER DECLARATIONS
+// =============================================================================
+
+export ledger verifiedPriceProofs: Counter;
+export ledger oraclePublicKey: Bytes<32>;
+
+// =============================================================================
+// WITNESS FUNCTIONS
+// =============================================================================
+
+/**
+ * Retrieves the trader's actual order price (private).
+ */
+witness getActualPrice(): Uint<64>;
+
+/**
+ * Retrieves the blinding nonce used in the price commitment.
+ */
+witness getPriceNonce(): Bytes<32>;
+
+// =============================================================================
+// CIRCUITS
+// =============================================================================
+
+/**
+ * Circuit: provePriceInRange
+ *
+ * Generates a ZK proof that:
+ *   1. The actual order price falls within [minPrice, maxPrice]
+ *   2. The price commitment is correctly computed: H(actualPrice || nonce)
+ *   3. The price range is derived from a valid oracle signature
+ *
+ * This ensures limit orders have reasonable prices (within oracle ± deviation)
+ * without revealing the exact price to potential front-runners.
+ *
+ * @param publicInputs - The price range bounds and commitment
+ * @param oracle       - Oracle price data with signature
+ */
+export circuit provePriceInRange(
+  publicInputs: PriceRangePublicInputs,
+  oracle: OraclePrice
+): Void {
+  // --- Step 1: Retrieve private price data ---
+  const actualPrice = getActualPrice();
+  const nonce = getPriceNonce();
+
+  // --- Step 2: Verify oracle signature ---
+  // Ensure the price range is based on a legitimate oracle feed
+  const oracleData = hash(oracle.indexPrice, oracle.oracleTimestamp, publicInputs.pairId);
+  assert(verifySignature(oracle.oracleSignature, oracleData, oraclePublicKey),
+    "Invalid oracle signature");
+
+  // --- Step 3: Verify price range is correctly derived from oracle ---
+  // minPrice = indexPrice * (10000 - maxDeviationBps) / 10000
+  // maxPrice = indexPrice * (10000 + maxDeviationBps) / 10000
+  const computedMinPrice = (oracle.indexPrice * (10000 - oracle.maxDeviationBps)) / 10000;
+  const computedMaxPrice = (oracle.indexPrice * (10000 + oracle.maxDeviationBps)) / 10000;
+  assert(publicInputs.minPrice == computedMinPrice, "Min price does not match oracle");
+  assert(publicInputs.maxPrice == computedMaxPrice, "Max price does not match oracle");
+
+  // --- Step 4: Assert price is within range ---
+  assert(actualPrice >= publicInputs.minPrice,
+    "Order price below minimum allowed");
+  assert(actualPrice <= publicInputs.maxPrice,
+    "Order price above maximum allowed");
+
+  // --- Step 5: Verify price commitment ---
+  const computedCommitment = hash(actualPrice, nonce);
+  assert(computedCommitment == publicInputs.priceCommitment,
+    "Price commitment does not match actual price");
+
+  // --- Step 6: Record verification ---
+  verifiedPriceProofs = verifiedPriceProofs + 1;
+}
