@@ -39,8 +39,26 @@ import { initWalletWithSeed } from './wallet.js';
 import { traderLedgerPublicKey } from './trader-key.js';
 import { ensureDustReady } from './dust.js';
 import { hashSingle32, hashPair32 } from './midnight-hash.js';
+import { performance } from 'node:perf_hooks';
 
 (globalThis as any).WebSocket = WebSocket;
+
+type BenchStep = { label: string; ms: number };
+
+const benchSteps: BenchStep[] = [];
+
+async function benchProof<T>(label: string, run: () => Promise<T>): Promise<T> {
+  const t0 = performance.now();
+  try {
+    return await run();
+  } finally {
+    const ms = performance.now() - t0;
+    benchSteps.push({ label, ms });
+    if (process.env.ZKPERPS_PIPELINE_BENCH_LOG === '1') {
+      console.log(`[bench] ${label}: ${ms.toFixed(1)} ms`);
+    }
+  }
+}
 
 function hexToBytes32(hex: string): Uint8Array {
   const h = hex.replace(/^0x/, '');
@@ -117,8 +135,15 @@ async function main(): Promise<void> {
   logTx('order:deploy', orderDeployed.deployTxData.public);
   console.log('order:contractAddress=', orderDeployed.deployTxData.public.contractAddress);
   const orderCall = orderDeployed.callTx;
-  logTx('order:proveTraderOrderAuthority', (await orderCall.proveTraderOrderAuthority()).public);
-  logTx('order:bindL1SettlementAnchor', (await orderCall.bindL1SettlementAnchor(new Uint8Array(l1Anchor))).public);
+  logTx(
+    'order:proveTraderOrderAuthority',
+    (await benchProof('order:proveTraderOrderAuthority', () => orderCall.proveTraderOrderAuthority())).public,
+  );
+  logTx(
+    'order:bindL1SettlementAnchor',
+    (await benchProof('order:bindL1SettlementAnchor', () => orderCall.bindL1SettlementAnchor(new Uint8Array(l1Anchor))))
+      .public,
+  );
 
   // --- zkperps-matching ---
   const matchProviders = await configureZkperpsMatchingProviders(walletCtx, config);
@@ -135,7 +160,11 @@ async function main(): Promise<void> {
   logTx('matching:deploy', matchDeployed.deployTxData.public);
   logTx(
     'matching:proveAndFinalizeMatch',
-    (await matchDeployed.callTx.proveAndFinalizeMatch(new Uint8Array(matchDigest))).public,
+    (
+      await benchProof('matching:proveAndFinalizeMatch', () =>
+        matchDeployed.callTx.proveAndFinalizeMatch(new Uint8Array(matchDigest)),
+      )
+    ).public,
   );
 
   // --- zkperps-settlement ---
@@ -150,7 +179,11 @@ async function main(): Promise<void> {
   logTx('settlement:deploy', settleDeployed.deployTxData.public);
   logTx(
     'settlement:proveSettlementTransition',
-    (await settleDeployed.callTx.proveSettlementTransition(new Uint8Array(settlementNext))).public,
+    (
+      await benchProof('settlement:proveSettlementTransition', () =>
+        settleDeployed.callTx.proveSettlementTransition(new Uint8Array(settlementNext)),
+      )
+    ).public,
   );
 
   // --- zkperps-liquidation ---
@@ -165,7 +198,11 @@ async function main(): Promise<void> {
   logTx('liquidation:deploy', liqDeployed.deployTxData.public);
   logTx(
     'liquidation:proveLiquidationBreach',
-    (await liqDeployed.callTx.proveLiquidationBreach(new Uint8Array(liqThreshold))).public,
+    (
+      await benchProof('liquidation:proveLiquidationBreach', () =>
+        liqDeployed.callTx.proveLiquidationBreach(new Uint8Array(liqThreshold)),
+      )
+    ).public,
   );
 
   // --- zkperps-aggregate ---
@@ -181,10 +218,32 @@ async function main(): Promise<void> {
     args: [new Uint8Array(aggInitial)],
   });
   logTx('aggregate:deploy', aggDeployed.deployTxData.public);
-  logTx('aggregate:proveAggregatedProofBundle', (await aggDeployed.callTx.proveAggregatedProofBundle()).public);
+  logTx(
+    'aggregate:proveAggregatedProofBundle',
+    (await benchProof('aggregate:proveAggregatedProofBundle', () => aggDeployed.callTx.proveAggregatedProofBundle()))
+      .public,
+  );
 
   await walletCtx.wallet.stop();
   console.log('Done. Midnight five-contract pipeline submitted.');
+
+  const totalProveMs = benchSteps.reduce((a, s) => a + s.ms, 0);
+  const benchPayload = {
+    kind: 'zkperps-pipeline-bench',
+    captured_at: new Date().toISOString(),
+    midnight_network: process.env.MIDNIGHT_DEPLOY_NETWORK ?? 'undeployed',
+    proof_server: process.env.MIDNIGHT_PROOF_SERVER ?? 'default',
+    hardware_note: process.env.BENCH_HARDWARE_NOTE ?? '',
+    steps: benchSteps,
+    total_zk_wall_ms: Math.round(totalProveMs * 1000) / 1000,
+    sequential_zk_steps: benchSteps.length,
+    /** 7 ZK-heavy steps; useful when comparing to SRS sequential vs parallel deployments */
+    sequential_proofs_per_second:
+      totalProveMs > 0 ? Math.round((benchSteps.length / (totalProveMs / 1000)) * 1000) / 1000 : 0,
+  };
+  if (process.env.ZKPERPS_PIPELINE_BENCH_JSON === '1') {
+    console.log(JSON.stringify(benchPayload, null, 2));
+  }
 }
 
 main().catch((e) => {

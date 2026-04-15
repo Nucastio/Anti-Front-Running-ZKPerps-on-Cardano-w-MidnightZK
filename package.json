@@ -14,6 +14,7 @@
     "compact": "npm run compact -w @zkperps/midnight-contract",
     "test": "vitest run",
     "bench": "tsx scripts/bench-proofs.ts",
+    "bench:srs": "tsx scripts/bench-srs-latency.ts",
     "midnight:deploy": "npm run deploy -w @zkperps/midnight-local-cli",
     "midnight:run-all": "npm run run-all -w @zkperps/midnight-local-cli",
     "midnight:run-pipeline": "npm run run-pipeline -w @zkperps/midnight-local-cli",
