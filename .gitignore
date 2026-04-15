@@ -8,6 +8,7 @@ docs/*-diagrams.md
 
 # ffmpeg demo outputs (from a local-only ASS pipeline, if you maintain those scripts)
 docs/media/*.mp4
+!docs/media/zkperps-pipeline-demo.mp4
 docs/media/*.ass
 docs/media/*.webm
 

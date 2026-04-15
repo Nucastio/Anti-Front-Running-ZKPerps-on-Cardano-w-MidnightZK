@@ -13,7 +13,7 @@ Open **`docs/demo-terminal.html`** in Chrome or Firefox (double-click, or `cd do
 
 ### Optional: terminal replay / ffmpeg (not shipped)
 
-`scripts/cli-demo-replay.ts`, `scripts/demo-run-data.ts`, and `scripts/build-demo-mp4.ts` are **gitignored** and not part of the published tree. If you keep private copies for a terminal ANSI replay or ASS+ffmpeg renders, run them with `npx tsx …` and align hashes with **`docs/benchmarks.md`** / **`docs/testnet-evidence.md`**. Generated **`docs/media/*.mp4`** / **`*.ass`** stay ignored as well.
+`scripts/cli-demo-replay.ts`, `scripts/demo-run-data.ts`, and `scripts/build-demo-mp4.ts` are **gitignored** and not part of the published tree. If you keep private copies for a terminal ANSI replay or ASS+ffmpeg renders, run them with `npx tsx …` and align hashes with **`docs/benchmarks.md`** / **`docs/testnet-evidence.md`**. Other generated **`docs/media/*.mp4`** / **`*.ass`** stay ignored; the checked-in demo is **[`zkperps-pipeline-demo.mp4`](media/zkperps-pipeline-demo.mp4)** (~1.3 MB).
 
 ### Optional: Charm VHS (GIF)
 
