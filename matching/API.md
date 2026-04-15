@@ -2,13 +2,13 @@
 
 This module implements the privacy-preserving order matching engine. It receives ZK-committed orders, verifies associated proofs, and matches compatible buy/sell orders using price-time priority.
 
-Refer to SRS Section 3.4: "Orders are matched according to protocol rules: price compatibility, liquidity availability, margin constraints. Correct matching must be verified through proof generation before settlement."
+Per [Software requirements](../docs/SRS.md), Section 3.4: "Orders are matched according to protocol rules: price compatibility, liquidity availability, margin constraints. Correct matching must be verified through proof generation before settlement."
 
-Refer to SRS Section 5.2: "Handles order intake, matching logic, liquidity coordination."
+Per the same document, Section 5.2: "Handles order intake, matching logic, liquidity coordination."
 
 ---
 
-## STUB_order_matcher.ts — Core Matching Engine
+## order_matcher.ts — Core Matching Engine
 
 ### OrderMatcher Class
 
@@ -28,12 +28,12 @@ Refer to SRS Section 5.2: "Handles order intake, matching logic, liquidity coord
 2. Sort orders by committed price (bids descending, asks ascending)
 3. Match the best bid against the best ask when they cross
 4. Execution price is the midpoint of the two limit prices
-5. Generate a matching proof using `STUB_matching_verification.compact`
+5. Generate a matching proof (see Midnight matching / verification circuits in specification §7 — production proof wiring is environment-specific)
 6. Emit match events for downstream settlement
 
 ---
 
-## STUB_order_book.ts — Private Order Book
+## order_book.ts — Private Order Book
 
 ### PrivateOrderBook Class
 
@@ -54,7 +54,7 @@ Maintains sorted bid and ask sides. Orders are stored as commitments, so the boo
 
 ---
 
-## STUB_order_validator.ts — Order Validation
+## order_validator.ts — Order Validation
 
 Pre-validation before ZK proof generation. Provides early-exit checks for invalid parameters.
 
@@ -68,7 +68,7 @@ Pre-validation before ZK proof generation. Provides early-exit checks for invali
 
 ---
 
-## STUB_matching_events.ts — Event System
+## matching_events.ts — Event System
 
 Typed event system for the order lifecycle. Used by settlement, monitoring, and notification systems.
 

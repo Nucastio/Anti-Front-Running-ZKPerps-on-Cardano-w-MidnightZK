@@ -2,21 +2,21 @@
 
 This module provides the privacy layer powered by Midnight's zero-knowledge capabilities. It handles connection to the Midnight network, shielded order management, selective disclosure for regulatory compliance, and encrypted on-chain state management.
 
-Refer to SRS Section 4.1: "The protocol must protect the confidentiality of order parameters, trader identities, margin balances, open positions."
+Per [Software requirements](../docs/SRS.md), Section 4.1: "The protocol must protect the confidentiality of order parameters, trader identities, margin balances, open positions."
 
-Refer to SRS Section 5.2: "Implements encryption, commitment generation, identity shielding."
+Per the same document, Section 5.2: "Implements encryption, commitment generation, identity shielding."
 
-Refer to SRS Section 6: "Midnight provides the confidential execution environment for the protocol."
+Per the same document, Section 6: "Midnight provides the confidential execution environment for the protocol."
 
 ---
 
-## STUB_midnight_connector.ts — Midnight Network Integration
+## midnight_connector.ts — Midnight Network Integration
 
 ### MidnightConnector Class
 
 Integration layer with the Midnight sidechain. Handles connection management, contract deployment, and private state queries.
 
-Refer to SRS Section 6.1 (Kachina Framework), Section 6.2 (Compact Language), Section 6.3 (Proof Server).
+Per [Software requirements](../docs/SRS.md), Section 6.1 (Kachina Framework), Section 6.2 (Compact Language), Section 6.3 (Proof Server).
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
@@ -34,7 +34,7 @@ Refer to SRS Section 6.1 (Kachina Framework), Section 6.2 (Compact Language), Se
 
 ---
 
-## STUB_shielded_pool.ts — Shielded Transaction Pool
+## shielded_pool.ts — Shielded Transaction Pool
 
 ### ShieldedPool Class
 
@@ -59,11 +59,11 @@ Trader -> shieldOrder() -> ShieldedOrder -> Matching Engine -> Match Found
 
 ---
 
-## STUB_selective_disclosure.ts — Regulatory Compliance
+## selective_disclosure.ts — Regulatory Compliance
 
 Allows traders to reveal specific trade details to authorized auditors without compromising overall trade privacy. Uses ZK proofs to certify that disclosed values match the original commitment.
 
-Refer to SRS Section 2.2: "Selective disclosure of data."
+Per [Software requirements](../docs/SRS.md), Section 2.2: "Selective disclosure of data."
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -75,7 +75,7 @@ Refer to SRS Section 2.2: "Selective disclosure of data."
 
 ---
 
-## STUB_encrypted_state.ts — Encrypted On-Chain State
+## encrypted_state.ts — Encrypted On-Chain State
 
 Manages encrypted state on the Midnight sidechain with ZK proofs for state transitions. Supports optimistic concurrency via version numbering.
 

@@ -1,16 +1,16 @@
 # Settlement Module — API Reference
 
-This module handles the on-chain settlement of matched trades on the Cardano blockchain. It includes the settlement engine, margin account management, Cardano blockchain integration, the funding rate mechanism, and the liquidation engine.
+This module handles the on-chain settlement of matched trades on the Cardano blockchain. It includes the settlement engine, margin account management, Cardano blockchain integration, the funding rate mechanism, and the liquidation engine. Pass a `cardanoConnector` into `SettlementEngineConfig` to anchor settlements with Lucid; otherwise the engine returns deterministic synthetic transaction hashes for offline / CI use.
 
-Refer to SRS Section 3.5: "Once a match occurs, the system must update trader balances, margin accounts, open positions. State transitions must be verified using zero-knowledge proofs before being accepted by the network."
+Per [Software requirements](../docs/SRS.md), Section 3.5: "Once a match occurs, the system must update trader balances, margin accounts, open positions. State transitions must be verified using zero-knowledge proofs before being accepted by the network."
 
-Refer to SRS Section 3.6: "The protocol must support liquidation when margin requirements are violated."
+Per the same document, Section 3.6: "The protocol must support liquidation when margin requirements are violated."
 
-Refer to SRS Section 5.2: "Handles margin updates, position management, liquidation execution."
+Per the same document, Section 5.2: "Handles margin updates, position management, liquidation execution."
 
 ---
 
-## STUB_settlement_engine.ts — Core Settlement Engine
+## settlement_engine.ts — Core Settlement Engine
 
 ### SettlementEngine Class
 
@@ -30,7 +30,7 @@ Refer to SRS Section 5.2: "Handles margin updates, position management, liquidat
 
 ---
 
-## STUB_margin_manager.ts — Margin Account Management
+## margin_manager.ts — Margin Account Management
 
 ### MarginManager Class
 
@@ -52,7 +52,7 @@ Margin Level = (Total Balance + Unrealized PnL) / Locked Margin
 
 ---
 
-## STUB_cardano_connector.ts — Cardano Blockchain Connector
+## cardano_connector.ts — Cardano Blockchain Connector
 
 ### CardanoConnector Class
 
@@ -63,7 +63,7 @@ Low-level interaction with the Cardano blockchain. Used by the SettlementEngine 
 | `connect` | `() -> Promise<void>` | Connects to Cardano node |
 | `submitTransaction` | `(signedTx) -> Promise<SubmitResult>` | Submits signed transaction to network |
 | `queryUTxO` | `(address) -> Promise<CardanoUTxO[]>` | Queries UTxOs at an address |
-| `buildSettlementTx` | `(params) -> Promise<CardanoTransaction>` | Builds a settlement transaction |
+| `buildSettlementTx` | `(params) -> Promise<CardanoTransaction>` | Builds a settlement transaction; with **`params.anchor`**, pays min-ADA to the **Aiken** settlement script + **inline AnchorDatum** (see `src/cardano/settlement_anchor.ts`) |
 | `signTransaction` | `(tx, signingKey) -> Promise<string>` | Signs transaction with Ed25519 key |
 | `waitForConfirmation` | `(txHash, confirmations?, timeout?) -> Promise<ConfirmationResult>` | Polls for transaction confirmation |
 | `getProtocolParameters` | `() -> Promise<ProtocolParameters>` | Gets current protocol parameters |
@@ -72,7 +72,7 @@ Low-level interaction with the Cardano blockchain. Used by the SettlementEngine 
 
 ---
 
-## STUB_funding_rate.ts — Funding Rate Mechanism
+## funding_rate.ts — Funding Rate Mechanism
 
 Periodic funding payments between long and short position holders to anchor the perpetual price to the index price.
 
@@ -96,15 +96,17 @@ Dampened Rate = Clamped Rate * 0.1
 
 ---
 
-## STUB_liquidation_engine.ts — Liquidation Engine (SRS Section 3.6)
+## liquidation_engine.ts — Liquidation Engine (specification Section 3.6)
 
 ### LiquidationEngine Class
 
-Continuously monitors open positions for margin breaches and executes liquidations verified by `STUB_liquidation_verification.compact`.
+Monitors registered open positions for margin breaches and executes liquidations with locally generated verification proofs (production deployments wire this to Midnight / proof-server).
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `initialize` | `() -> Promise<void>` | Loads liquidation circuit, connects to oracle |
+| `registerOpenPosition` | `(position) -> void` | Registers a position for `scanAtRiskPositions` |
+| `unregisterPosition` | `(positionId) -> void` | Removes a position after close or liquidation |
+| `initialize` | `() -> Promise<void>` | Prepares local engine state |
 | `startMonitoring` | `() -> Promise<void>` | Starts continuous position monitoring |
 | `stopMonitoring` | `() -> Promise<void>` | Stops position monitoring |
 | `assessPositionRisk` | `(position, markPrice) -> Promise<AtRiskPosition>` | Classifies position risk level |

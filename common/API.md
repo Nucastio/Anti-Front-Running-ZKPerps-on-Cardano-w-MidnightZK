@@ -2,11 +2,11 @@
 
 This module provides shared data structures, error handling, utility functions, and system constants used across all other modules in the Anti-Front-Running ZK Perpetuals system.
 
-Refer to SRS Section 5.2: "Contains shared components including cryptographic utilities, protocol configuration, data structures."
+Per [Software requirements](../docs/SRS.md), Section 5.2: "Contains shared components including cryptographic utilities, protocol configuration, data structures."
 
 ---
 
-## STUB_types.ts — Core Data Structures
+## types.ts — Core Data Structures
 
 ### Enums
 
@@ -22,7 +22,7 @@ Refer to SRS Section 5.2: "Contains shared components including cryptographic ut
 | Interface | Key Fields | Description |
 |-----------|-----------|-------------|
 | `Order` | `id`, `pairId`, `side`, `type`, `price`, `size`, `leverage`, `margin` | Full order representation |
-| `OrderCommitment` | `commitmentHash`, `traderPubKeyHash`, `timestamp` | ZK-committed order (SRS Section 3.2) |
+| `OrderCommitment` | `commitmentHash`, `traderPubKeyHash`, `timestamp` | ZK-committed order (specification Section 3.2) |
 | `Position` | `positionId`, `pairId`, `side`, `entryPrice`, `size`, `marginLocked` | Open derivatives position |
 | `MarketPair` | `pairId`, `baseAsset`, `quoteAsset`, `maxLeverage` | Trading pair configuration |
 | `ZKProof` | `proof`, `publicInputs`, `verificationKey` | Generic zero-knowledge proof container |
@@ -36,7 +36,7 @@ Refer to SRS Section 5.2: "Contains shared components including cryptographic ut
 
 ---
 
-## STUB_errors.ts — Error Handling
+## errors.ts — Error Handling
 
 ### Base Class
 
@@ -55,7 +55,7 @@ Refer to SRS Section 5.2: "Contains shared components including cryptographic ut
 
 ---
 
-## STUB_utils.ts — Utility Functions
+## utils.ts — Utility Functions
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -73,7 +73,7 @@ Refer to SRS Section 5.2: "Contains shared components including cryptographic ut
 
 ---
 
-## STUB_constants.ts — System Constants
+## constants.ts — System Constants
 
 | Category | Constants | Description |
 |----------|----------|-------------|
