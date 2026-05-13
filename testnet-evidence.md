@@ -1,9 +1,10 @@
 # ZKPerps Testnet Evidence
 
-Generated: 2026-04-15 (latest run)
+Generated: 2026-05-12 (latest run)
 
+**Close-out report:** [docs/close-out-report.md](docs/close-out-report.md)  
 **Benchmarks / methodology:** [docs/benchmarks.md](docs/benchmarks.md)  
-**Cardano Preprod evidence table:** [docs/testnet-evidence.md](docs/testnet-evidence.md)  
+**Full evidence (Midnight + Cardano + security + privacy):** [docs/testnet-evidence.md](docs/testnet-evidence.md)  
 **Pipeline capture:** [docs/srs-pipeline-run.md](docs/srs-pipeline-run.md)
 
 ---

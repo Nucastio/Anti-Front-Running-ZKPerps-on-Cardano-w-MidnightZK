@@ -22,13 +22,18 @@
     "build:settlement-anchor": "sh -c 'cd cardano/settlement-anchor && aiken build'",
     "pipeline:evidence": "tsx scripts/run-pipeline-evidence.ts",
     "cardano:anchor": "tsx scripts/cardano-anchor-settlement.ts",
-    "proof-server": "docker run --rm -p 6300:6300 midnightntwrk/proof-server:8.0.3 midnight-proof-server -v"
+    "proof-server": "docker run --rm -p 6300:6300 midnightntwrk/proof-server:8.0.3 midnight-proof-server -v",
+    "serve": "tsx backend/api/server.ts",
+    "serve:ui": "npx serve ui -l 5175"
   },
   "dependencies": {
+    "@hono/node-server": "^2.0.2",
     "@lucid-evolution/lucid": "0.4.29",
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "hono": "^4.12.18"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/node": "^22.15.0",
     "tsx": "^4.19.2",
     "typescript": "^5.9.3",
